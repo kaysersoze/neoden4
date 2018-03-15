@@ -1,204 +1,295 @@
 #usage "<b>Mounting data generator with panelization support \n"
 		"for Neoden 4 PNP machine</b>\n"
 
-board(B) {
-	real machine_pcb_min = 0.0;
-	real machine_pcb_max = 99.0;
+real machine_pcb_min = 0.0;
+real machine_pcb_max = 99.0;
 
-	real pcb_size_x = 0;
-	real pcb_size_y = 0;
-	real pcb_theta = 0;
-	real rail_size = 0;
-	real origin_offset_x = 0;
-	real origin_offset_y = 0;
-	real rotated_origin_offset_x = 0;
-	real rotated_origin_offset_y = 0;
-	real offset_x = 0;
-	real offset_y = 0;
-	int count_x = 1;
-	int count_y = 1;
+real pcb_size_x = 0;
+real pcb_size_y = 0;
+real pcb_theta = 0;
+real rail_size = 0;
+real origin_offset_x = 0;
+real origin_offset_y = 0;
+real rotated_origin_offset_x = 0;
+real rotated_origin_offset_y = 0;
+real offset_x = 0;
+real offset_y = 0;
+int count_x = 1;
+int count_y = 1;
 
-	int Result = dlgDialog("Machine Parameters (mm)") {
-		dlgGroup("PCB Dimensions (mm)") {
-			dlgHBoxLayout {
-				dlgLabel("X");
-				dlgRealEdit(pcb_size_x, machine_pcb_min, machine_pcb_max);
-				dlgLabel("Y");
-				dlgRealEdit(pcb_size_y, machine_pcb_min, machine_pcb_max);
-				dlgLabel("Θ");
-				dlgRealEdit(pcb_theta, 0.00, 360.00);
-				dlgPushButton("Auto-calculate") {
-					// Get board size automatically as per: https://gist.github.com/itavero/8042433
-					board(B) {
-			     		char firstPoint = 'y';
-				 		real x1;
-				 		real y1;
-				 		real x2;
-				 		real y2;
+string components[];
+int components_skip[];
 
-				 		B.wires(W) {
-				 			if (W.layer == LAYER_DIMENSION) {
-								// Wire is on dimension layer
-								real wx1 = u2mm(W.x1);
-								real wy1 = u2mm(W.y1);
-								real wx2 = u2mm(W.x2);
-								real wy2 = u2mm(W.y2);
+int generate_cam = 0;
 
-								// Start point of wire
-								if(firstPoint == 'y') {
-									firstPoint = 'n';
-									x1 = wx1;
-									x2 = wx1;
-									y1 = wy1;
-									y2 = wy2;
-								} else {
-									if (wx1 > x1) {
-										x1 = wx1;
-									}
-									if (wx1 < x2) {
-										x2 = wx1;
-									}
-									if (wy1 > y1) {
-										y1 = wy1;
-									}
-									if (wy1 < y2) {
-										y2 = wy1;
-									}
-								}
+/*
+ *  Functions
+ */
+void autocalculate() {
+	// Get board size automatically as per: https://gist.github.com/itavero/8042433
+	board(B) {
+ 		char firstPoint = 'y';
+ 		real x1;
+ 		real y1;
+ 		real x2;
+ 		real y2;
 
-								// End point of wire
-								if (wx2 > x1) {
-									x1 = wx2;
-								}
-								if (wx2 < x2) {
-									x2 = wx2;
-								}
-								if (wy2 > y1) {
-									y1 = wy2;
-								}
-								if (wy2 < y2) {
-									y2 = wy2;
-								}
+ 		B.wires(W) {
+ 			if (W.layer == LAYER_DIMENSION) {
+				// Wire is on dimension layer
+				real wx1 = u2mm(W.x1);
+				real wy1 = u2mm(W.y1);
+				real wx2 = u2mm(W.x2);
+				real wy2 = u2mm(W.y2);
 
-							}
-						}
-
-						pcb_size_x = (x1 - x2);
-						pcb_size_y = (y1 - y2);
-					}
-				}
-			}
-		}
-		dlgSpacing(5);
-		dlgGroup("Rail Dimensions (mm)") {
-			dlgHBoxLayout {
-				dlgLabel("Width");
-				dlgRealEdit(rail_size);
-			}
-		}
-		dlgSpacing(5);
-		dlgGroup("Offsets (mm)") {
-			dlgHBoxLayout {
-				dlgLabel("X");
-				dlgRealEdit(offset_x);
-				dlgLabel("Y");
-				dlgRealEdit(offset_y);
-			}
-		}
-		dlgSpacing(5);
-		dlgGroup("PCB Count") {
-			dlgHBoxLayout {
-				dlgLabel("X");
-				dlgIntEdit(count_x);
-				dlgLabel("Y");
-				dlgIntEdit(count_y);
-			}
-		}
-		dlgHBoxLayout {
-			dlgPushButton("+Generate") {
-				// Get filename
-				string fileName = dlgFileSave("Top - Save File", filesetext(B.name, "-top.csv"), "*.csv");
-				if (fileName == "") {
-					dlgMessageBox(":No filename provided!");
-					dlgReject();
+				// Start point of wire
+				if(firstPoint == 'y') {
+					firstPoint = 'n';
+					x1 = wx1;
+					x2 = wx1;
+					y1 = wy1;
+					y2 = wy2;
 				} else {
-					// Calculate the sin() and cos() of the pcb_theta.
-					// This NEEDS to be converted to radians. sin() and cos() take radians, not degrees
-					real pcb_theta_rad = pcb_theta * (PI / 180);
-					real s_theta = sin(pcb_theta_rad);
-					real c_theta = cos(pcb_theta_rad);
-
-					// Calculate origin offset: find center of panelized board,
-					// (maximum x distance) / 2 and (maximum y distance) / 2
-					real max_x = (pcb_size_x * count_x) + (offset_x * (count_x + 1)) + (rail_size * 2);
-					real max_y = (pcb_size_y * count_y) + (offset_y * (count_y - 1));
-					origin_offset_x = max_x / 2;
-					origin_offset_y = max_y / 2;
-					rotated_origin_offset_x = origin_offset_x;
-					rotated_origin_offset_y = origin_offset_y;
-
-					if(pcb_theta > 0) {
-						rotated_origin_offset_x = (origin_offset_x * c_theta) - (origin_offset_y * s_theta);
-						rotated_origin_offset_y = (origin_offset_x * s_theta) + (origin_offset_y * c_theta);
+					if (wx1 > x1) {
+						x1 = wx1;
 					}
+					if (wx1 < x2) {
+						x2 = wx1;
+					}
+					if (wy1 > y1) {
+						y1 = wy1;
+					}
+					if (wy1 < y2) {
+						y2 = wy1;
+					}
+				}
 
-					output(fileName) {
-						printf("Designator,Footprint,Mid X,Mid Y,Layer,Rotation,Comment\n");
-						printf(",,,,,,\n");
+				// End point of wire
+				if (wx2 > x1) {
+					x1 = wx2;
+				}
+				if (wx2 < x2) {
+					x2 = wx2;
+				}
+				if (wy2 > y1) {
+					y1 = wy2;
+				}
+				if (wy2 < y2) {
+					y2 = wy2;
+				}
 
-						int first = 0;
+			}
+		}
 
-						B.elements(E) {
-							int wasSmd = 0;
-							real angle = 0;
-							real cx = 0.0;
-							real cy = 0.0;
-							real final_x = 0.0;
-							real final_y = 0.0;
-							real total_offset_x = 0;
-							real total_offset_y = 0;
+		pcb_size_x = (x1 - x2);
+		pcb_size_y = (y1 - y2);
+	}
+}
 
-							E.package.contacts(C) {
-								if (C.smd && C.smd.layer == 1) {
-									wasSmd = 1;
-								}
+void generate_output() {
+	board(B) {
+		string csvFileName = dlgFileSave("Top - Save File", filesetext(B.name, "-top.csv"), "*.csv");
+		if (csvFileName == "") {
+			dlgMessageBox(":No filename provided!");
+			dlgReject();
+		} else {
+			// Calculate the sin() and cos() of the pcb_theta.
+			// This NEEDS to be converted to radians. sin() and cos() take radians, not degrees
+			real pcb_theta_rad = pcb_theta * (PI / 180);
+			real s_theta = sin(pcb_theta_rad);
+			real c_theta = cos(pcb_theta_rad);
+
+			// Calculate origin offset: find center of panelized board,
+			// (maximum x distance) / 2 and (maximum y distance) / 2
+			real max_x = (pcb_size_x * count_x) + (offset_x * (count_x + 1)) + (rail_size * 2);
+			real max_y = (pcb_size_y * count_y) + (offset_y * (count_y - 1));
+			origin_offset_x = max_x / 2;
+			origin_offset_y = max_y / 2;
+			rotated_origin_offset_x = origin_offset_x;
+			rotated_origin_offset_y = origin_offset_y;
+
+			if(pcb_theta > 0) {
+				rotated_origin_offset_x = (origin_offset_x * c_theta) - (origin_offset_y * s_theta);
+				rotated_origin_offset_y = (origin_offset_x * s_theta) + (origin_offset_y * c_theta);
+			}
+
+			// CAM output array
+			string cam_output[];
+
+			int i = 0;
+
+			output(csvFileName) {
+				printf("Designator,Footprint,Mid X,Mid Y,Layer,Rotation,Comment\n");
+				printf(",,,,,,\n");
+
+				B.elements(E) {
+					if(!components_skip[i]) {
+						int wasSmd = 0;
+						real angle = 0;
+						real cx = 0.0;
+						real cy = 0.0;
+						real final_x = 0.0;
+						real final_y = 0.0;
+						real total_offset_x = 0;
+						real total_offset_y = 0;
+
+						E.package.contacts(C) {
+							if (C.smd && C.smd.layer == 1) {
+								wasSmd = 1;
 							}
+						}
 
-							if (wasSmd) {
-								real composite_angle = E.angle - pcb_theta;
-								angle = (composite_angle <= 180) ? composite_angle : (composite_angle - 360);
+						if (wasSmd) {
+							real composite_angle = E.angle - pcb_theta;
+							angle = (composite_angle >= 0) ? composite_angle : (composite_angle + 360);
 
-								real source_x = u2mm(E.x);
-								real source_y = u2mm(E.y);
+							real source_x = u2mm(E.x);
+							real source_y = u2mm(E.y);
 
-								// Loop on the Y dimension
-								for(int i = 1; i <= count_y; ++i) {
-									total_offset_y = (offset_y * (i - 1)) + (pcb_size_y - source_y) + (pcb_size_y * (i - 1));
-									cy = (total_offset_y + source_y) - origin_offset_y;
+							// Loop on the Y dimension
+							for(int i = 1; i <= count_y; ++i) {
+								total_offset_y = (offset_y * (i - 1)) + (pcb_size_y - source_y) + (pcb_size_y * (i - 1));
+								cy = (total_offset_y + source_y) - origin_offset_y;
 
-									// Loop on the X dimension
-									for(int j = 1; j <= count_x; ++j) {
-										total_offset_x = rail_size + (offset_x * j) + (pcb_size_x - source_x) + (pcb_size_x * (j - 1));
-										cx = (total_offset_x  + source_x) - origin_offset_x;
+								// Loop on the X dimension
+								for(int j = 1; j <= count_x; ++j) {
+									total_offset_x = rail_size + (offset_x * j) + (pcb_size_x - source_x) + (pcb_size_x * (j - 1));
+									cx = (total_offset_x  + source_x) - origin_offset_x;
 
-										final_x = ((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x;
-										final_y = ((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y;
+									final_x = abs(((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x);
+									final_y = abs(((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y);
 
-										printf("%s-X%uY%u,%s,%.2fmm,%.2fmm,T,%.0f,%s\n",
-											E.name, j, i, E.package.name, final_x, final_y, angle, E.value);
+									if(generate_cam) {
+										sprintf(cam_output[i], "X%.5fY%.5fD03*\n", final_x, final_y);
 									}
+
+									printf("%s-X%uY%u,%s,%.2fmm,%.2fmm,T,%.0f,%s\n",
+										E.name, j, i, E.package.name, final_x, final_y, angle, E.value);
 								}
 							}
 						}
 					}
-					dlgAccept();
+					i++;
 				}
 			}
 
-			// Cancel ULP
-			dlgPushButton("Cancel") {
-				dlgReject();
+			if(generate_cam) {
+				output(filesetext(csvFileName, ".cam")) {
+					// CAM header
+					printf("%%FSLAX25Y25*%%\n");	// Set precision: 2 left of decimal, 5 right
+					printf("%%MOMM*%%\n");			// Set grid: metric
+					printf("%%AD100C,0.5*%%\n");	// Set aperture: 100 with 0.5mm circle
+					printf("D100*\n");				// Select aperture
+
+					// CAM main
+					for(int k = 0; k <= i; k++) {
+						printf("%s", cam_output[k]);
+					}
+
+					// CAM nnd
+					printf("M02*\n");
+				}
 			}
 		}
-	};
+	}
+}
+
+/*
+ *  Main
+ */
+void main() {
+	board(B) {
+		dlgDialog("Machine Parameters (mm)") {
+			dlgGridLayout {
+				dlgCell(0, 0) {
+					dlgGroup("Component Skip") {
+						int i = 0;
+						dlgVBoxLayout {
+							B.elements(E) {
+								components[i] = E.name;
+								components_skip[i] = 0;
+								dlgCheckBox(E.name, components_skip[i]);
+								i++;
+							}
+							dlgStretch(1);
+						}
+					}
+				}
+				dlgCell(0, 1) {
+					dlgVBoxLayout {
+						dlgHBoxLayout {
+							dlgGroup("PCB Dimensions (mm)") {
+								dlgHBoxLayout {
+									dlgLabel("X");
+									dlgRealEdit(pcb_size_x, machine_pcb_min, machine_pcb_max);
+									dlgLabel("Y");
+									dlgRealEdit(pcb_size_y, machine_pcb_min, machine_pcb_max);
+									dlgPushButton("Auto-calculate") {
+										autocalculate();
+									}
+								}
+							}
+							dlgGroup("PCB Rotation") {
+								dlgHBoxLayout {
+									dlgLabel("Θ");
+									dlgRealEdit(pcb_theta, 0.00, 360.00);
+								}
+							}
+						}
+						dlgSpacing(5);
+						dlgHBoxLayout {
+							dlgGroup("Rail Dimensions (mm)") {
+								dlgHBoxLayout {
+									dlgLabel("Width");
+									dlgRealEdit(rail_size);
+								}
+							}
+							dlgGroup("Offsets (mm)") {
+								dlgHBoxLayout {
+									dlgLabel("X");
+									dlgRealEdit(offset_x);
+									dlgLabel("Y");
+									dlgRealEdit(offset_y);
+								}
+							}
+						}
+						dlgSpacing(5);
+						dlgHBoxLayout {
+							dlgGroup("PCB Count") {
+								dlgHBoxLayout {
+									dlgLabel("X");
+									dlgIntEdit(count_x);
+									dlgLabel("Y");
+									dlgIntEdit(count_y);
+								}
+							}
+						}
+						/*
+						dlgSpacing(5);
+						dlgHBoxLayout {
+							dlgGroup("PCB Verification") {
+								dlgHBoxLayout {
+									dlgCheckBox("Generate CAM", generate_cam);
+									dlgStretch(1);
+								}
+							}
+						}
+						*/
+					}
+				}
+				dlgCell(1, 0, 1, 1) {
+					dlgHBoxLayout {
+						dlgStretch(1);
+						dlgPushButton("Cancel") {
+							dlgReject();
+						}
+						dlgPushButton("+Generate") {
+							generate_output();
+							dlgAccept();
+						}
+					}
+				}
+			}
+		};
+	}
 }
