@@ -21,6 +21,7 @@ string components[];
 int components_skip[];
 
 int generate_cam = 0;
+int onload_autocalculate = 1;
 
 /*
  *  Functions
@@ -217,6 +218,11 @@ void generate_output() {
  *  Main
  */
 void main() {
+	// Run some default stuff here
+	if(onload_autocalculate) {
+		autocalculate();
+	}
+
 	board(B) {
 		dlgDialog("Machine Parameters (mm)") {
 			dlgGridLayout {
