@@ -139,9 +139,16 @@ void generate_output() {
 						real source_x = u2mm(E.x);
 						real source_y = u2mm(E.y);
 
-						E.package.contacts(C) {
-							if (C.smd && C.smd.layer == 1) {
-								place = 1;
+						// Test for a fiducial, if so, include it. Right now, very specific to Digital
+						// Indigo's naming convention, since no pad is included in fiducial currently.
+						int fiducial_pos = strxstr(E.package.name, "^FIDUCIAL", 0);
+						if(fiducial_pos >= 0) {
+							place = 1;
+						} else {
+							E.package.contacts(C) {
+								if (C.smd && C.smd.layer == 1) {
+									place = 1;
+								}
 							}
 						}
 
