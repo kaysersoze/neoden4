@@ -115,8 +115,8 @@ void generate_output() {
 			rotated_origin_offset_y = origin_offset_y;
 
 			if(pcb_theta > 0) {
-				rotated_origin_offset_x = (origin_offset_x * c_theta) - (origin_offset_y * s_theta);
-				rotated_origin_offset_y = (origin_offset_x * s_theta) + (origin_offset_y * c_theta);
+				rotated_origin_offset_x = abs((origin_offset_x * c_theta) - (origin_offset_y * s_theta));
+				rotated_origin_offset_y = abs((origin_offset_x * s_theta) + (origin_offset_y * c_theta));
 			}
 
 			// CAM output array
@@ -175,8 +175,8 @@ void generate_output() {
 									}
 
 									if(pcb_theta > 0) {
-										final_x = abs(((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x);
-										final_y = abs(((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y);
+										final_x = ((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x;
+										final_y = ((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y;
 									} else {
 										final_x = cx + rotated_origin_offset_x;
 										final_y = cy + rotated_origin_offset_y;
