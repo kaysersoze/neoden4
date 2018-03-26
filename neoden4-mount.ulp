@@ -101,8 +101,14 @@ void generate_output() {
 
 			// Calculate origin offset: find center of panelized board,
 			// (maximum x distance) / 2 and (maximum y distance) / 2
-			real max_x = (pcb_size_x * count_x) + (offset_x * (count_x + 1)) + (rail_size * 2);
+			real max_x = (pcb_size_x * count_x) + (offset_x * (count_x - 1));
 			real max_y = (pcb_size_y * count_y) + (offset_y * (count_y - 1));
+			// Calculate size with rail [FIX]
+			if(rail_size > 0 && pcb_theta == 0) {
+				max_x = max_x + ((rail_size + offset_x) * 2);
+			} else {
+				max_y = max_y + ((rail_size + offset_y) * 2);
+			}
 			origin_offset_x = max_x / 2;
 			origin_offset_y = max_y / 2;
 			rotated_origin_offset_x = origin_offset_x;
@@ -124,52 +130,58 @@ void generate_output() {
 
 				B.elements(E) {
 					if(!components_skip[i]) {
-						int wasSmd = 0;
+						int place = 0;
 						real angle = 0;
 						real cx = 0.0;
 						real cy = 0.0;
 						real final_x = 0.0;
 						real final_y = 0.0;
-						real total_offset_x = 0;
-						real total_offset_y = 0;
+						real source_x = u2mm(E.x);
+						real source_y = u2mm(E.y);
 
 						E.package.contacts(C) {
 							if (C.smd && C.smd.layer == 1) {
-								wasSmd = 1;
+								place = 1;
 							}
 						}
 
-						if (wasSmd) {
+						if (place) {
 							real composite_angle = E.angle - pcb_theta;
 							angle = (composite_angle >= 0) ? composite_angle : (composite_angle + 360);
 
-							real source_x = u2mm(E.x);
-							real source_y = u2mm(E.y);
-
 							// Loop on the Y dimension
-							for(int i = 1; i <= count_y; ++i) {
-								total_offset_y = (offset_y * (i - 1)) + (pcb_size_y - source_y) + (pcb_size_y * (i - 1));
-								cy = (total_offset_y + source_y) - origin_offset_y;
+							for(int j = 1; j <= count_y; ++j) {
+								cy = ((offset_y * (j - 1)) + (source_y * j) + (pcb_size_y * (j - 1))) - origin_offset_y;
+
+								// Add rail size (and additional offset) [FIX]
+								if(rail_size > 0 && pcb_theta > 0) {
+									cy = cy + rail_size + offset_y;
+								}
 
 								// Loop on the X dimension
-								for(int j = 1; j <= count_x; ++j) {
-									total_offset_x = rail_size + (offset_x * j) + (pcb_size_x - source_x) + (pcb_size_x * (j - 1));
-									cx = (total_offset_x  + source_x) - origin_offset_x;
+								for(int k = 1; k <= count_x; ++k) {
+									cx = ((offset_x * (k - 1)) + (source_x * k) + (pcb_size_x * (k - 1))) - origin_offset_x;
 
-									final_x = abs(((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x);
-									final_y = abs(((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y);
+									// Add rail size (and additional offset) [FIX]
+									if(rail_size > 0 && pcb_theta == 0) {
+										cx = cx + rail_size + offset_x;
+									}
 
-									if(generate_cam) {
-										sprintf(cam_output[i], "X%.5fY%.5fD03*\n", final_x, final_y);
+									if(pcb_theta > 0) {
+										final_x = abs(((cx * c_theta) - (cy * s_theta)) + rotated_origin_offset_x);
+										final_y = abs(((cy * c_theta) + (cx * s_theta)) + rotated_origin_offset_y);
+									} else {
+										final_x = cx + rotated_origin_offset_x;
+										final_y = cy + rotated_origin_offset_y;
 									}
 
 									printf("%s-X%uY%u,%s,%.2fmm,%.2fmm,T,%.0f,%s\n",
-										E.name, j, i, E.package.name, final_x, final_y, angle, E.value);
+										E.name, k, j, E.package.name, final_x, final_y, angle, E.value);
 								}
 							}
 						}
 					}
-					i++;
+					++i;
 				}
 			}
 
