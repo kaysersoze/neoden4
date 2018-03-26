@@ -12,8 +12,10 @@ real origin_offset_x = 0;
 real origin_offset_y = 0;
 real rotated_origin_offset_x = 0;
 real rotated_origin_offset_y = 0;
-real offset_x = 0;
-real offset_y = 0;
+real machine_offset_x = 0;
+real machine_offset_y = 0;
+real step_offset_x = 0;
+real step_offset_y = 0;
 int count_x = 1;
 int count_y = 1;
 
@@ -102,13 +104,13 @@ void generate_output() {
 
 			// Calculate origin offset: find center of panelized board,
 			// (maximum x distance) / 2 and (maximum y distance) / 2
-			real max_x = (pcb_size_x * count_x) + (offset_x * (count_x - 1));
-			real max_y = (pcb_size_y * count_y) + (offset_y * (count_y - 1));
+			real max_x = (pcb_size_x * count_x) + (step_offset_x * (count_x - 1));
+			real max_y = (pcb_size_y * count_y) + (step_offset_y * (count_y - 1));
 			// Calculate size with rail [FIX]
 			if(rail_size > 0 && pcb_theta == 0) {
-				max_x = max_x + ((rail_size + offset_x) * 2);
+				max_x = max_x + ((rail_size + step_offset_x) * 2);
 			} else {
-				max_y = max_y + ((rail_size + offset_y) * 2);
+				max_y = max_y + ((rail_size + step_offset_y) * 2);
 			}
 			origin_offset_x = max_x / 2;
 			origin_offset_y = max_y / 2;
@@ -159,20 +161,20 @@ void generate_output() {
 
 							// Loop on the Y dimension
 							for(int j = 1; j <= count_y; ++j) {
-								cy = ((offset_y * (j - 1)) + (source_y * j) + (pcb_size_y * (j - 1))) - origin_offset_y;
+								cy = ((step_offset_y * (j - 1)) + (source_y * j) + (pcb_size_y * (j - 1))) - origin_offset_y;
 
 								// Add rail size (and additional offset) [FIX]
 								if(rail_size > 0 && pcb_theta > 0) {
-									cy = cy + rail_size + offset_y;
+									cy = cy + rail_size + step_offset_y;
 								}
 
 								// Loop on the X dimension
 								for(int k = 1; k <= count_x; ++k) {
-									cx = ((offset_x * (k - 1)) + (source_x * k) + (pcb_size_x * (k - 1))) - origin_offset_x;
+									cx = ((step_offset_x * (k - 1)) + (source_x * k) + (pcb_size_x * (k - 1))) - origin_offset_x;
 
 									// Add rail size (and additional offset) [FIX]
 									if(rail_size > 0 && pcb_theta == 0) {
-										cx = cx + rail_size + offset_x;
+										cx = cx + rail_size + step_offset_x;
 									}
 
 									if(pcb_theta > 0) {
@@ -182,6 +184,9 @@ void generate_output() {
 										final_x = cx + rotated_origin_offset_x;
 										final_y = cy + rotated_origin_offset_y;
 									}
+
+									final_x = final_x + machine_offset_x;
+									final_y = final_y + machine_offset_y;
 
 									printf("%s-X%uY%u,%s,%.2fmm,%.2fmm,T,%.0f,%s\n",
 										E.name, k, j, E.package.name, final_x, final_y, angle, E.value);
@@ -269,12 +274,20 @@ void main() {
 									dlgRealEdit(rail_size);
 								}
 							}
-							dlgGroup("Offsets (mm)") {
+							dlgGroup("Machine Offsets (mm)") {
 								dlgHBoxLayout {
 									dlgLabel("X");
-									dlgRealEdit(offset_x);
+									dlgRealEdit(machine_offset_x);
 									dlgLabel("Y");
-									dlgRealEdit(offset_y);
+									dlgRealEdit(machine_offset_y);
+								}
+							}
+							dlgGroup("Step Offsets (mm)") {
+								dlgHBoxLayout {
+									dlgLabel("X");
+									dlgRealEdit(step_offset_x);
+									dlgLabel("Y");
+									dlgRealEdit(step_offset_y);
 								}
 							}
 						}
