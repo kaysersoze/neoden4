@@ -2,7 +2,7 @@
 		"for Neoden 4 PNP machine</b>\n"
 
 real machine_pcb_min = 0.0;
-real machine_pcb_max = 99.0;
+real machine_pcb_max = 1500.0;
 
 real pcb_size_x = 0;
 real pcb_size_y = 0;
