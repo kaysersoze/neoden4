@@ -28,6 +28,10 @@ int onload_autocalculate = 1;
 /*
  *  Functions
  */
+int mod(int c, int m) {
+	return c - (c / m * m);
+}
+
 void autocalculate() {
 	// Get board size automatically as per: https://gist.github.com/itavero/8042433
 	board(B) {
@@ -156,8 +160,8 @@ void generate_output() {
 						}
 
 						if (place) {
-							real composite_angle = E.angle - pcb_theta;
-							angle = (composite_angle >= 0) ? composite_angle : (composite_angle + 360);
+							real composite_angle = E.angle + pcb_theta;
+							angle = mod(composite_angle, 360);
 
 							// Loop on the Y dimension
 							for(int j = 1; j <= count_y; ++j) {
